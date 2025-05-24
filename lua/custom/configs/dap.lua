@@ -28,13 +28,13 @@ function M.setup()
     },
   }
 
-  -- Define the CoreCLR adapter for .NET
-dap.adapters.coreclr = {
-  type = 'executable',
-  command = 'C:/tools/netcoredbg/netcoredbg.exe', -- Full path to netcoredbg.exe
-  args = {'--interpreter=vscode'},
-}
-
+--   -- Define the CoreCLR adapter for .NET
+-- dap.adapters.coreclr = {
+--   type = 'executable',
+--   command = 'C:/tools/netcoredbg/netcoredbg.exe', -- Full path to netcoredbg.exe
+--   args = {'--interpreter=vscode'},
+-- }
+--
 -- Debug configurations for C# (WPF projects)
 dap.configurations.cs = {
   {

@@ -149,15 +149,172 @@ local function rename_file()
   end
 end
 
+
+
+local hebrew_mode = false
+
+local function toggle_hebrew_mode()
+  local api = vim.api
+  if hebrew_mode then
+    vim.o.keymap = ""
+    vim.o.rightleft = false
+    -- Don't set arabic here
+    api.nvim_echo({{"Switched to English mode", "None"}}, false, {})
+    hebrew_mode = false
+  else
+    vim.o.keymap = "hebrew"
+    vim.o.rightleft = true
+    -- Do NOT set arabic here for Hebrew
+    api.nvim_echo({{"Switched to Hebrew mode", "None"}}, false, {})
+    hebrew_mode = true
+  end
+end
+
+
+-- Helper function to clean and rebuild C++ projects
+local function clean_rebuild_cpp_project(on_success)
+  local local_config = load_project_config()
+  if not local_config or not local_config.project_sln then
+    print("Error: project_sln not defined in local.lua")
+    return
+  end
+
+  -- MSBuild clean and rebuild command
+  local cmd_clean = string.format("msbuild \"%s\" /target:Clean /nologo", local_config.project_sln)
+  local cmd_rebuild = string.format("msbuild \"%s\" /target:Rebuild /nologo /p:Configuration=Debug", local_config.project_sln)
+
+  -- Run clean command first
+  vim.fn.jobstart(cmd_clean, {
+    stdout_buffered = true,
+    stderr_buffered = true,
+    on_exit = function(_, code)
+      if code == 0 then
+        print("Clean completed successfully! Starting rebuild...")
+        -- Run rebuild command after clean
+        vim.fn.jobstart(cmd_rebuild, {
+          stdout_buffered = true,
+          stderr_buffered = true,
+          on_stdout = function(_, data)
+            if data then
+              vim.fn.setqflist({}, "r", { title = "MSBuild Rebuild", lines = data })
+            end
+          end,
+          on_stderr = function(_, data)
+            if data then
+              vim.fn.setqflist({}, "a", { title = "MSBuild Rebuild Errors", lines = data })
+            end
+          end,
+          on_exit = function(_, code)
+            if code == 0 then
+              print("Rebuild completed successfully!")
+              if on_success then
+                on_success()
+              end
+            else
+              print("Rebuild failed with code:", code)
+              vim.cmd("copen")
+            end
+          end,
+        })
+      else
+        print("Clean failed with code:", code)
+        vim.cmd("copen")
+      end
+    end,
+  })
+end
+
+-- Helper function to clean and rebuild C# projects
+local function clean_rebuild_cs_project(on_success)
+  local cmd_clean = "dotnet clean"
+  local cmd_rebuild = "dotnet build"
+
+  -- Run clean command first
+  vim.fn.jobstart(cmd_clean, {
+    stdout_buffered = true,
+    stderr_buffered = true,
+    on_exit = function(_, code)
+      if code == 0 then
+        print("Clean completed successfully! Starting rebuild...")
+        -- Run rebuild command after clean
+        vim.fn.jobstart(cmd_rebuild, {
+          stdout_buffered = true,
+          stderr_buffered = true,
+          on_stdout = function(_, data)
+            if data then
+              vim.fn.setqflist({}, "r", { title = "dotnet Rebuild", lines = data })
+            end
+          end,
+          on_stderr = function(_, data)
+            if data then
+              vim.fn.setqflist({}, "a", { title = "dotnet Rebuild Errors", lines = data })
+            end
+          end,
+          on_exit = function(_, code)
+            if code == 0 then
+              print("Rebuild completed successfully!")
+              if on_success then
+                on_success()
+              end
+            else
+              print("Rebuild failed with code:", code)
+              vim.cmd("copen")
+            end
+          end,
+        })
+      else
+        print("Clean failed with code:", code)
+        vim.cmd("copen")
+      end
+    end,
+  })
+end
+
+-- Helper function to clean and rebuild the project
+local function clean_rebuild_project(on_success)
+  local project_type = detect_project_type()
+  if project_type == "cs" then
+    clean_rebuild_cs_project(on_success)
+  elseif project_type == "cpp" then
+    clean_rebuild_cpp_project(on_success)
+  else
+    print("Error: Unknown project type. Cannot clean and rebuild.")
+  end
+end
+
+
 -- General keymaps
+
 M.general = {
   n = {
-        ["<leader>rf"] = {
+    ["<leader>rf"] = {
       rename_file,
       "Rename current file",
     },
+    ["<leader>lh"] = { toggle_hebrew_mode, "Toggle Hebrew Mode" },
+    ["<leader>md"] = {
+      function()
+        -- Run cmake build, capture output and populate quickfix list
+        local output = vim.fn.systemlist("cmake --build build 2>&1")
+        vim.fn.setqflist({}, ' ', {
+          title = 'CMake Build',
+          lines = output,
+        })
+        vim.cmd("copen")
+      end,
+      "Build project with CMake and open quickfix",
+    },
   },
 }
+
+-- Add keybinding for clean and rebuild
+M.general.n["<leader>cr"] = {
+  function()
+    clean_rebuild_project()
+  end,
+  "Clean and rebuild project (C# or C++)",
+}
+
 
 return M
 

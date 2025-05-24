@@ -8,6 +8,7 @@ g.base46_cache = vim.fn.stdpath "data" .. "/nvchad/base46/"
 g.toggle_theme_icon = "   "
 g.transparency = config.ui.transparency
 
+-----------------------------------------costum -----------------------------------------
 
 
 -------------------------------------- options ------------------------------------------
@@ -34,6 +35,7 @@ opt.mouse = "a"
 opt.number = true
 opt.numberwidth = 2
 opt.ruler = false
+opt.relativenumber = true
 
 -- disable nvim intro
 opt.shortmess:append "sI"
